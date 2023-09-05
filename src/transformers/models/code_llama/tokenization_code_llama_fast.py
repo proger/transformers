@@ -70,7 +70,9 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
 
 
     This tokenizer inherits from [`PreTrainedTokenizerFast`] which contains most of the main methods. Users should
-    refer to this superclass for more information regarding those methods.
+    refer to this superclass for more information regarding those methods. The default configuration match that of
+    [codellama/CodeLlama-7b-Instruct-hf](https://huggingface.co/codellama/CodeLlama-7b-Instruct-hf/blob/main/tokenizer_config.json)
+    which supports prompt infilling.
 
     Args:
         vocab_file (`str`):
@@ -101,6 +103,10 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
             The token used to split the input between the prefix and suffix.
         suffix_first (`bool`, *optional*, default to `False`):
             Whether the input prompt and suffix should be formatted with the suffix first.
+        additional_special_tokens (`List[str]`, *optional*):
+            Additional special tokens used by the tokenizer.
+        use_default_system_prompt (`bool`, *optional*, defaults to `True`):
+            Whether or not the default system prompt for Llama should be used.
     """
 
     vocab_files_names = VOCAB_FILES_NAMES
@@ -121,13 +127,18 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         suffix_token="▁<SUF>",
         eot_token="▁<EOT>",
         fill_token="<FILL_ME>",
+        additional_special_tokens=None,
         add_bos_token=True,
         add_eos_token=False,
+        use_default_system_prompt=False,
         **kwargs,
     ):
         # mark tokens special to skip them
-        additional_special_tokens = kwargs.pop("additional_special_tokens", [])
-        additional_special_tokens += [prefix_token, middle_token, suffix_token, eot_token]
+        additional_special_tokens = additional_special_tokens or []
+        for token in [prefix_token, middle_token, suffix_token, eot_token]:
+            additional_special_tokens += [token] if token is not None else []
+        self.use_default_system_prompt = use_default_system_prompt
+
         super().__init__(
             vocab_file=vocab_file,
             tokenizer_file=tokenizer_file,
@@ -141,6 +152,7 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
             suffix_token=suffix_token,
             eot_token=eot_token,
             fill_token=fill_token,
+            use_default_system_prompt=use_default_system_prompt,
             **kwargs,
         )
         self._add_bos_token = add_bos_token
@@ -148,7 +160,6 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         self.update_post_processor()
 
         self.vocab_file = vocab_file
-        self.can_save_slow_tokenizer = False if not self.vocab_file else True
 
         self._prefix_token = prefix_token
         self._middle_token = middle_token
@@ -156,6 +167,11 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         self._eot_token = eot_token
         self.fill_token = fill_token
 
+    @property
+    def can_save_slow_tokenizer(self) -> bool:
+        return os.path.isfile(self.vocab_file) if self.vocab_file else False
+
+    # Copied from transformers.models.llama.tokenization_llama_fast.LlamaTokenizerFast.update_post_processor
     def update_post_processor(self):
         """
         Updates the underlying post processor with the current `bos_token` and `eos_token`.
@@ -294,6 +310,7 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         self.set_infilling_processor(True)
         return tokens
 
+    # Copied from transformers.models.llama.tokenization_llama_fast.LlamaTokenizerFast.save_vocabulary
     def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not self.can_save_slow_tokenizer:
             raise ValueError(
@@ -359,7 +376,6 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         Returns:
             `List[int]`: list of [input IDs](../glossary#input-ids) with the appropriate special tokens.
         """
-        # TODO process the ids for fast? Or update the template processing for infilling task when using `tokenize_infilling`
         if token_ids_1 is None:
             return self.prefix_tokens + token_ids_0 + self.suffix_tokens
         return self.prefix_tokens + token_ids_0 + token_ids_1 + self.suffix_tokens
