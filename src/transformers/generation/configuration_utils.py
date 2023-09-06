@@ -37,6 +37,7 @@ logger = logging.get_logger(__name__)
 
 
 class GenerationConfig(PushToHubMixin):
+    # no-format
     r"""
     Class that holds a configuration for a generation task. A `generate` call supports the following generation methods
     for text-decoder, text-to-text, speech-to-text, and vision-to-text models:
