@@ -440,9 +440,9 @@ def main():
     # ignore those attributes).
     if isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)):
         if args.source_lang is not None:
-            tokenizer.src_lang = args.source_lang
+            tokenizer.src_lang = "uk"
         if args.target_lang is not None:
-            tokenizer.tgt_lang = args.target_lang
+            tokenizer.tgt_lang = "uk"
 
     # Get the language codes for input/target.
     source_lang = args.source_lang.split("_")[0]
@@ -455,8 +455,8 @@ def main():
     padding = "max_length" if args.pad_to_max_length else False
 
     def preprocess_function(examples):
-        inputs = [ex[source_lang] for ex in examples["translation"]]
-        targets = [ex[target_lang] for ex in examples["translation"]]
+        inputs = examples[source_lang]
+        targets = examples[target_lang]
         inputs = [prefix + inp for inp in inputs]
         model_inputs = tokenizer(inputs, max_length=args.max_source_length, padding=padding, truncation=True)
 
